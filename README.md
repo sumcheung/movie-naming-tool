@@ -22,5 +22,43 @@
 
 1. **克隆仓库**
    ```bash
-   git clone [https://github.com/sumcheung/movie-naming-tool.git](https://github.com/sumcheung/movie-naming-tool.git)
+   git clone https://github.com/sumcheung/movie-naming-tool.git
    cd movie-naming-tool
+   ```
+
+2. **安装依赖**
+   ```bash
+   npm install
+   ```
+
+3. **启动服务**
+   ```bash
+   npm start
+   ```
+   服务启动后，在浏览器访问 `http://localhost:3000`（具体端口以实际配置为准）。
+
+### 方式二：Docker 部署
+
+项目根目录下已内置 `Dockerfile` 与 `docker-compose.yml`，推荐使用 Docker Compose 进行一键部署：
+
+```bash
+docker-compose up -d
+```
+
+## 📂 目录结构
+
+```text
+movie-naming-tool/
+├── public/             # 前端静态资源界面
+│   └── index.html      # 主操作页面
+├── server.js           # 后端核心服务逻辑
+├── package.json        # 项目依赖及脚本配置
+├── Dockerfile          # Docker 镜像构建文件
+├── docker-compose.yml  # Docker 容器编排配置文件
+├── .gitignore          # Git 忽略文件配置
+└── README.md           # 项目说明文档
+```
+
+## 📄 开源许可
+
+本项目基于 [MIT License](LICENSE) 开源协议。
