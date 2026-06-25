@@ -31,7 +31,7 @@ docker pull sumcheung/movie-naming-tool:latest
 你可以直接运行以下命令启动容器：
 ```bash
 docker run -d \
-  --name movie-tool \
+  --name movie-naming-tool \
   -p 3000:3000 \
   -v ./data:/app/data \
   -v ./logs:/app/logs \
@@ -45,7 +45,7 @@ docker run -d \
 services:
   movie-tool:
     image: sumcheung/movie-naming-tool:latest
-    container_name: movie-naming-tool 
+    container_name: movie-naming-tool
     ports:
       - "3000:3000"
     volumes:
