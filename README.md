@@ -18,11 +18,52 @@
 
 ## 📦 快速开始
 
-### 方式一：本地运行
+### 方式一：Docker 部署 (推荐)
+
+推荐直接使用线上托管的 Docker 镜像进行快速部署，无需在本地配置 Node.js 环境。
+
+#### 1. 拉取最新的镜像
+```bash
+docker pull sumcheung/movie-naming-tool:latest
+```
+
+#### 2. Docker Run
+你可以直接运行以下命令启动容器：
+```bash
+docker run -d \
+  --name movie-tool \
+  -p 3000:3000 \
+  -v ./data:/app/data \
+  -v ./logs:/app/logs \
+  --restart unless-stopped \
+  sumcheung/movie-naming-tool:latest
+```
+
+#### 3. Docker Compose
+你也可以在项目根目录下创建 `docker-compose.yml` 文件，内容配置如下：
+```yaml
+services:
+  movie-tool:
+    image: sumcheung/movie-naming-tool:latest
+    ports:
+      - "3000:3000"   # 宿主端口:容器端口，可修改左侧为其他端口
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+```
+在文件所在目录下执行以下命令即可静默启动：
+```bash
+docker-compose up -d
+```
+
+---
+
+### 方式二：本地源码运行
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/sumcheung/movie-naming-tool.git
+   git clone [https://github.com/sumcheung/movie-naming-tool.git](https://github.com/sumcheung/movie-naming-tool.git)
    cd movie-naming-tool
    ```
 
@@ -35,15 +76,7 @@
    ```bash
    npm start
    ```
-   服务启动后，在浏览器访问 `http://localhost:3000`（具体端口以实际配置为准）。
-
-### 方式二：Docker 部署
-
-项目根目录下已内置 `Dockerfile` 与 `docker-compose.yml`，推荐使用 Docker Compose 进行一键部署：
-
-```bash
-docker-compose up -d
-```
+   服务启动后，在浏览器访问 `http://localhost:3000`。
 
 ## 📂 目录结构
 
