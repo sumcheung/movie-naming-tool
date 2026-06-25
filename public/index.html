@@ -108,6 +108,45 @@
             min-height: 500px;
         }
 
+        /* --- 结果工具栏样式 --- */
+        .results-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            background: var(--panel-bg);
+            padding: 12px 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s;
+        }
+        
+        .filter-group, .sort-group { display: flex; gap: 8px; }
+
+        .toolbar-btn {
+            background: var(--bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toolbar-btn:hover {
+            border-color: var(--secondary);
+            color: var(--secondary);
+        }
+        .toolbar-btn.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+            font-weight: bold;
+        }
+
         .logo-area {
             display: flex;
             justify-content: space-between;
@@ -180,6 +219,27 @@
             opacity: 0.7;
         }
         .toggle-pwd-btn:hover { opacity: 1; }
+
+        /* --- 清空按钮样式 --- */
+        .clear-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text-light);
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s, color 0.2s;
+            opacity: 0.6;
+        }
+        .clear-btn:hover { 
+            opacity: 1; 
+            color: var(--secondary); 
+        }
 
         .search-btn {
             width: 100%;
@@ -490,19 +550,40 @@
 
         <div class="form-group">
             <label class="form-label">影视名称 (支持中英文)</label>
-            <input type="text" id="searchQuery" placeholder="例如：家有儿女 / Home with Kids">
+            <div class="input-with-icon">
+                <input type="text" id="searchQuery" placeholder="例如：家有儿女 / Home with Kids">
+                <button type="button" id="clearQueryBtn" class="clear-btn hidden" title="清空">✕</button>
+            </div>
         </div>
 
         <div class="form-group">
             <label class="form-label">年份 (可选)</label>
-            <input type="text" id="searchYear" placeholder="例如：2005">
+            <div class="input-with-icon">
+                <input type="text" id="searchYear" placeholder="例如：2005">
+                <button type="button" id="clearYearBtn" class="clear-btn hidden" title="清空">✕</button>
+            </div>
         </div>
 
         <button class="search-btn" onclick="startSearch()">匹配并生成结果</button>
     </div>
 
-    <div class="results-panel" id="resultsContainer">
-        <div class="placeholder-text">输入关键词并点击搜索<br>结果将显示在这里</div>
+    <div class="results-panel">
+        <div class="results-toolbar hidden" id="resultsToolbar">
+            <div class="filter-group">
+                <button class="toolbar-btn active" data-filter="all">全部</button>
+                <button class="toolbar-btn" data-filter="movie">电影</button>
+                <button class="toolbar-btn" data-filter="tv">剧集</button>
+            </div>
+            <div class="sort-group">
+                <button class="toolbar-btn active" data-sort="default">默认关联</button>
+                <button class="toolbar-btn" data-sort="time">最新上映</button>
+                <button class="toolbar-btn" data-sort="rating">最高评分</button>
+            </div>
+        </div>
+        
+        <div id="resultsContainer">
+            <div class="placeholder-text">输入关键词并点击搜索<br>结果将显示在这里</div>
+        </div>
     </div>
 </div>
 
@@ -513,6 +594,22 @@
 </div>
 
 <script>
+    // --- 全局状态管理 ---
+    let allResultsData = [];
+    let currentFilter = 'all'; 
+    let currentSort = 'default';
+    let currentSortDir = 'desc'; // 'desc' (降序) 或 'asc' (升序)
+    let currentQuery = '';
+
+    // --- 新增：向服务器发送日志的函数 ---
+    function sendLog(logData) {
+        fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(logData)
+        }).catch(() => {}); // 即使发日志失败也不影响用户使用
+    }
+
     // --- 日夜间模式逻辑 ---
     const themeToggleBtn = document.getElementById('themeToggle');
     const currentTheme = localStorage.getItem('theme') || 'light';
@@ -537,7 +634,6 @@
     const apiKeyInput = document.getElementById('apiKey');
     const toggleApiKeyBtn = document.getElementById('toggleApiKey');
 
-    // 加载 API Key
     async function loadApiKey() {
         try {
             const res = await fetch('/api/config');
@@ -553,7 +649,6 @@
     }
     loadApiKey();
 
-    // 实时保存到后端
     apiKeyInput.addEventListener('input', async (e) => {
         const key = e.target.value.trim();
         try {
@@ -567,7 +662,6 @@
         }
     });
 
-    // 显隐切换
     toggleApiKeyBtn.addEventListener('click', () => {
         if (apiKeyInput.type === 'password') {
             apiKeyInput.type = 'text';
@@ -580,13 +674,39 @@
         }
     });
 
-    // --- 绑定影视名称输入框的回车键搜索 ---
-    document.getElementById('searchQuery').addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            startSearch();
-        }
-    });
+    // --- 绑定输入框的回车键搜索 ---
+    function bindEnterToSearch(inputId) {
+        document.getElementById(inputId).addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                startSearch();
+            }
+        });
+    }
+    bindEnterToSearch('searchQuery');
+    bindEnterToSearch('searchYear');
+
+    // --- 输入框清空按钮逻辑 (带动态显隐) ---
+    function setupClearButton(inputId, btnId) {
+        const input = document.getElementById(inputId);
+        const btn = document.getElementById(btnId);
+        
+        input.addEventListener('input', () => {
+            if (input.value.length > 0) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        });
+
+        btn.addEventListener('click', () => {
+            input.value = '';
+            btn.classList.add('hidden'); 
+            input.focus(); 
+        });
+    }
+    setupClearButton('searchQuery', 'clearQueryBtn');
+    setupClearButton('searchYear', 'clearYearBtn');
 
     // --- 核心联动拆分处理 ---
     function applyHighlightAndScroll(uid, source) {
@@ -645,6 +765,150 @@
         return response.json();
     }
 
+    // --- 左侧复制面板渲染 ---
+    function renderLeftPanel(items) {
+        const quickCopyPanel = document.getElementById('quickCopyPanel');
+        const bestMatchContainer = document.getElementById('bestMatchContainer');
+        const otherMatchesContainer = document.getElementById('otherMatchesContainer');
+        const otherMatchesWrapper = document.getElementById('otherMatchesWrapper');
+        
+        bestMatchContainer.innerHTML = '';
+        otherMatchesContainer.innerHTML = '';
+
+        if (items.length === 0) {
+            quickCopyPanel.classList.add('hidden');
+            return;
+        }
+
+        items.forEach((item, index) => {
+            const isMovie = item.media_type === 'movie';
+            const title = isMovie ? (item.title || '未知标题') : (item.name || '未知标题');
+            const date = isMovie ? item.release_date : item.first_air_date;
+            const resultYear = date ? date.split('-')[0] : '未知';
+            
+            const uid = `${item.media_type}-${item.id}`; 
+            const copyString = `${title} (${resultYear}) {tmdb-${item.id}}`;
+
+            const box = document.createElement('div');
+            box.className = `quick-copy-box left-copy-item ${index === 0 ? 'best-match-box' : ''}`;
+            box.setAttribute('data-uid', uid);
+            box.setAttribute('data-copy-text', copyString);
+            box.onclick = function(e) { handleCopyClick(e, this, uid, 'left'); };
+            box.innerText = copyString;
+            box.title = "📋 点击复制此标准命名";
+
+            if (index === 0) {
+                bestMatchContainer.appendChild(box);
+            } else {
+                otherMatchesContainer.appendChild(box);
+            }
+        });
+
+        otherMatchesWrapper.classList.toggle('hidden', items.length <= 1);
+        quickCopyPanel.classList.remove('hidden');
+    }
+
+    // --- 执行过滤与排序 ---
+    function applyFilterAndSort() {
+        let processed = [...allResultsData];
+
+        // 1. 类型过滤
+        if (currentFilter !== 'all') {
+            processed = processed.filter(item => item.media_type === currentFilter);
+        }
+
+        // 2. 排序逻辑
+        if (currentSort === 'default') {
+            processed.sort((a, b) => {
+                const aTitle = (a.title || a.name || '').toLowerCase();
+                const bTitle = (b.title || b.name || '').toLowerCase();
+                const q = currentQuery.toLowerCase();
+                const aMatch = aTitle.includes(q) ? 1 : 0;
+                const bMatch = bTitle.includes(q) ? 1 : 0;
+                if (aMatch !== bMatch) return bMatch - aMatch;
+                return b.popularity - a.popularity;
+            });
+        } else if (currentSort === 'time') {
+            processed.sort((a, b) => {
+                const dateA = new Date(a.release_date || a.first_air_date || '1900-01-01').getTime();
+                const dateB = new Date(b.release_date || b.first_air_date || '1900-01-01').getTime();
+                // 降序：最新在前；升序：最早在前
+                return currentSortDir === 'desc' ? dateB - dateA : dateA - dateB; 
+            });
+        } else if (currentSort === 'rating') {
+            processed.sort((a, b) => {
+                const voteA = a.vote_average || 0;
+                const voteB = b.vote_average || 0;
+                if (voteB !== voteA) {
+                    // 降序：最高分在前；升序：最低分在前
+                    return currentSortDir === 'desc' ? voteB - voteA : voteA - voteB; 
+                }
+                return (b.vote_count || 0) - (a.vote_count || 0); // 评分相同时，始终按评价人数降序
+            });
+        }
+
+        // 3. 渲染左右两边
+        renderLeftPanel(processed);
+        
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = ''; 
+        if (processed.length === 0) {
+            container.innerHTML = '<div class="placeholder-text">当前筛选条件下无结果。</div>';
+        } else {
+            renderResults(processed); 
+        }
+    }
+
+    // --- 绑定过滤工具栏按钮事件 ---
+    document.querySelectorAll('.filter-group .toolbar-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-group .toolbar-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentFilter = e.target.getAttribute('data-filter');
+            applyFilterAndSort();
+        });
+    });
+
+    // --- 绑定排序工具栏按钮事件 (支持重复点击切换正倒序) ---
+    document.querySelectorAll('.sort-group .toolbar-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetSort = e.target.getAttribute('data-sort');
+            
+            // 1. 判断是切换方向还是切换排序维度
+            if (currentSort === targetSort) {
+                // 已经处于该排序维度，点击则切换正倒序 (默认关联不切换)
+                if (targetSort !== 'default') {
+                    currentSortDir = currentSortDir === 'desc' ? 'asc' : 'desc';
+                }
+            } else {
+                // 切换到新的排序维度，重置为降序，并高亮按钮
+                currentSort = targetSort;
+                currentSortDir = 'desc'; 
+                document.querySelectorAll('.sort-group .toolbar-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+
+            // 2. 根据当前状态动态更新按钮文案
+            const timeBtn = document.querySelector('.sort-group .toolbar-btn[data-sort="time"]');
+            const ratingBtn = document.querySelector('.sort-group .toolbar-btn[data-sort="rating"]');
+            
+            if (currentSort === 'time') {
+                timeBtn.innerText = currentSortDir === 'desc' ? '最新上映' : '最早上映';
+            } else {
+                timeBtn.innerText = '最新上映'; 
+            }
+            
+            if (currentSort === 'rating') {
+                ratingBtn.innerText = currentSortDir === 'desc' ? '最高评分' : '最低评分';
+            } else {
+                ratingBtn.innerText = '最高评分'; 
+            }
+
+            // 3. 应用排序结果
+            applyFilterAndSort();
+        });
+    });
+
     // --- 核心搜索与第三方请求逻辑 ---
     async function startSearch() {
         const apiKey = document.getElementById('apiKey').value.trim();
@@ -655,30 +919,27 @@
         const loadingText = document.getElementById('loadingText');
         const loadingError = document.getElementById('loadingError');
         const quickCopyPanel = document.getElementById('quickCopyPanel');
-        const bestMatchContainer = document.getElementById('bestMatchContainer');
-        const otherMatchesContainer = document.getElementById('otherMatchesContainer');
-        const otherMatchesWrapper = document.getElementById('otherMatchesWrapper');
 
         if (!apiKey) { alert('请填写 TMDB API Key！'); return; }
         if (!query) { alert('请输入影视名称'); return; }
 
-        // 点击搜索时再保存一次，确保最新
-        try {
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey })
-            });
-        } catch (e) {}
+        // 【更新】非阻塞发送 API Key 保存请求，不等待返回，直接继续搜索（解决卡顿问题）
+        fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey })
+        }).catch(e => {}); 
 
         loading.classList.remove('hidden');
         loadingError.classList.add('hidden');
         loadingError.innerText = '';
         quickCopyPanel.classList.add('hidden');
-        bestMatchContainer.innerHTML = '';
-        otherMatchesContainer.innerHTML = '';
+        document.getElementById('resultsToolbar').classList.add('hidden');
         loadingText.innerText = '正在执行全网匹配...';
         container.innerHTML = '';
+
+        // 【新增】记录开始时间
+        const startTime = Date.now(); 
 
         try {
             const [movieData, tvData] = await Promise.all([
@@ -719,54 +980,28 @@
                 });
             }
 
-            rawResults.sort((a, b) => {
-                const aTitle = (a.title || a.name || '').toLowerCase();
-                const bTitle = (b.title || b.name || '').toLowerCase();
-                const q = query.toLowerCase();
-                const aMatch = aTitle.includes(q) ? 1 : 0;
-                const bMatch = bTitle.includes(q) ? 1 : 0;
-                if (aMatch !== bMatch) return bMatch - aMatch;
-                return b.popularity - a.popularity;
-            });
+            currentQuery = query;
+            allResultsData = rawResults;
 
-            if (rawResults.length === 0) {
+            if (allResultsData.length === 0) {
+                document.getElementById('resultsToolbar').classList.add('hidden');
+                quickCopyPanel.classList.add('hidden');
                 container.innerHTML = '<div class="placeholder-text">未找到相关结果，请尝试更换关键词或去除年份限制。</div>';
             } else {
-                rawResults.forEach((item, index) => {
-                    const isMovie = item.media_type === 'movie';
-                    const title = isMovie ? (item.title || '未知标题') : (item.name || '未知标题');
-                    const date = isMovie ? item.release_date : item.first_air_date;
-                    const resultYear = date ? date.split('-')[0] : '未知';
-                    
-                    const uid = `${item.media_type}-${item.id}`; 
-                    const copyString = `${title} (${resultYear}) {tmdb-${item.id}}`;
-
-                    const box = document.createElement('div');
-                    box.className = `quick-copy-box left-copy-item ${index === 0 ? 'best-match-box' : ''}`;
-                    box.setAttribute('data-uid', uid);
-                    box.setAttribute('data-copy-text', copyString);
-                    box.onclick = function(e) { handleCopyClick(e, this, uid, 'left'); };
-                    box.innerText = copyString;
-                    box.title = "📋 点击复制此标准命名";
-
-                    if (index === 0) {
-                        bestMatchContainer.appendChild(box);
-                    } else {
-                        otherMatchesContainer.appendChild(box);
-                    }
-                });
-
-                if (rawResults.length > 1) {
-                    otherMatchesWrapper.classList.remove('hidden');
-                } else {
-                    otherMatchesWrapper.classList.add('hidden');
-                }
-                
-                quickCopyPanel.classList.remove('hidden');
-                renderResults(rawResults);
+                document.getElementById('resultsToolbar').classList.remove('hidden');
+                applyFilterAndSort(); 
             }
 
             loading.classList.add('hidden');
+
+            // 【新增】计算耗时并发送成功日志
+            const duration = Date.now() - startTime;
+            sendLog({
+                action: 'SEARCH_SUCCESS',
+                query: query + (year ? ` (${year})` : ''),
+                duration: duration,
+                resultCount: allResultsData.length
+            });
 
         } catch (error) {
             console.error(error);
@@ -779,6 +1014,16 @@
                 loading.onclick = null; 
             }
             container.innerHTML = `<div class="placeholder-text" style="color:#ff4d4f">❌ 搜索中止：${error.message}</div>`;
+
+            // 【新增】计算耗时并发送失败日志
+            const duration = Date.now() - startTime;
+            sendLog({
+                action: 'SEARCH_ERROR',
+                query: query + (year ? ` (${year})` : ''),
+                duration: duration,
+                error: error.message || "未知网络错误",
+                message: error.stack || ""
+            });
         }
     }
 

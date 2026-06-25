@@ -1,88 +1,69 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const winston = require('winston');
-const DailyRotateFile = require('winston-daily-rotate-file');
-
 const app = express();
-const PORT = process.env.PORT || 3000; // 允许通过环境变量修改端口
+const port = 3000;
 
-// ---------- 日志配置 ----------
-const logDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 创建日志记录器
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.printf(({ timestamp, level, message }) => {
-            return `${timestamp} [${level.toUpperCase()}] ${message}`;
-        })
-    ),
-    transports: [
-        new winston.transports.Console(), // 输出到控制台（docker logs可见）
-        new DailyRotateFile({
-            filename: path.join(logDir, 'app-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            maxSize: '20m',          // 单个文件最大20MB
-            maxFiles: '7d',          // 保留最近7天的日志
-            zippedArchive: true      // 压缩旧日志
-        })
-    ]
-});
+const configDir = path.join(__dirname, 'data');
+const configPath = path.join(configDir, 'config.json');
 
-// ---------- 中间件 ----------
-app.use(express.json()); // 解析JSON请求体
-app.use(express.static(path.join(__dirname, 'public'))); // 托管静态文件
-
-// ---------- 数据目录与配置文件 ----------
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-const configPath = path.join(dataDir, 'config.json');
-
-// 读取或初始化配置
-let config = { apiKey: '' };
-if (fs.existsSync(configPath)) {
-    try {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        config = JSON.parse(content);
-        logger.info('已加载配置文件');
-    } catch (e) {
-        logger.error('读取 config.json 失败，使用默认配置', e);
-    }
-} else {
-    // 如果不存在，创建默认配置
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    logger.info('已创建默认配置文件');
+// 获取当前东八区时间 (用来在日志里显示好看的时间格式)
+function getFormattedTime() {
+    const now = new Date();
+    // 加上 8 小时的时差 (北京/香港时间)
+    const tzOffset = 8 * 3600 * 1000;
+    return new Date(now.getTime() + tzOffset).toISOString().replace('T', ' ').substring(0, 23) + 'Z';
 }
 
-// ---------- API 路由 ----------
-// 获取配置（返回 apiKey）
+// 接口：加载 API Key
 app.get('/api/config', (req, res) => {
-    res.json({ apiKey: config.apiKey || '' });
+    try {
+        if (fs.existsSync(configPath)) {
+            const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            res.json(data);
+        } else {
+            res.json({});
+        }
+    } catch (e) {
+        res.status(500).json({ error: '读取配置失败' });
+    }
 });
 
-// 保存配置（接收 apiKey）
+// 接口：保存 API Key
 app.post('/api/config', (req, res) => {
-    const { apiKey } = req.body;
-    if (apiKey === undefined) {
-        return res.status(400).json({ error: '缺少 apiKey 字段' });
-    }
-    config.apiKey = apiKey.trim();
     try {
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        logger.info('API Key 已更新');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        fs.writeFileSync(configPath, JSON.stringify(req.body, null, 2));
         res.json({ success: true });
     } catch (e) {
-        logger.error('写入 config.json 失败', e);
-        res.status(500).json({ error: '写入配置文件失败' });
+        res.status(500).json({ error: '保存配置失败' });
     }
 });
 
-// ---------- 启动服务器 ----------
-app.listen(PORT, () => {
-    logger.info(`服务器已启动，监听端口 ${PORT}`);
-    logger.info(`静态目录: ${path.join(__dirname, 'public')}`);
-    logger.info(`配置文件: ${configPath}`);
+// 【新增接口】：接收前端发送的搜索日志
+app.post('/api/log', (req, res) => {
+    const { action, query, duration, resultCount, error, message } = req.body;
+    const timeString = getFormattedTime();
+    
+    if (action === 'SEARCH_SUCCESS') {
+        console.log(`${timeString} [INFO] 🔍 搜索: "${query}" | 耗时: ${duration}ms | 结果: ${resultCount}条`);
+    } else if (action === 'SEARCH_ERROR') {
+        console.log(`${timeString} [ERROR] ❌ 失败: "${query}" | 耗时: ${duration}ms | 原因: ${error} | 详细: ${message}`);
+    }
+    
+    res.json({ success: true });
+});
+
+// 启动服务器
+app.listen(port, () => {
+    const timeString = getFormattedTime();
+    console.log(`${timeString} [INFO] 已加载配置文件`);
+    console.log(`${timeString} [INFO] 服务器已启动，监听端口 ${port}`);
+    console.log(`${timeString} [INFO] 静态目录: /app/public`);
+    console.log(`${timeString} [INFO] 配置文件: /app/data/config.json`);
 });
