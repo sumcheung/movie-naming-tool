@@ -39,14 +39,15 @@ docker run -d \
   sumcheung/movie-naming-tool:latest
 ```
 
-#### 3. Docker Compose
+#### 3. Docker Compose (推荐)
 你也可以在项目根目录下创建 `docker-compose.yml` 文件，内容配置如下：
 ```yaml
 services:
   movie-tool:
     image: sumcheung/movie-naming-tool:latest
+    container_name: movie-naming-tool 
     ports:
-      - "3000:3000"   # 宿主端口:容器端口，可修改左侧为其他端口
+      - "3000:3000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
