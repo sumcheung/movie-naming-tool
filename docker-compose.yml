@@ -1,0 +1,10 @@
+version: '3'
+services:
+  movie-tool:
+    build: .
+    ports:
+      - "3000:3000"   # 宿主端口:容器端口，可修改左侧为其他端口
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped

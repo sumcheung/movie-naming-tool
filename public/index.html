@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影视剧集命名</title>
+    <style>
+        /* 亮色模式（默认）变量 */
+        :root {
+            --primary: #032541; 
+            --secondary: #01b4e4;
+            --douban-green: #007722;
+            --bg: #f5f7fa;
+            --panel-bg: #ffffff;
+            --text-main: #333333;
+            --text-light: #666666;
+            --border-color: #eeeeee;
+            --highlight-border: #01b4e4;
+            --highlight-bg: #e6f7ff;
+            --tag-bg: #f0f2f5;
+            --tag-text: #555555;
+            --code-bg: #fafafa;
+            --tv-detail-bg: #f8f9fa;
+            
+            /* 卡片类型区分颜色 (亮色模式) */
+            --movie-card-bg: #f4fafe;
+            --movie-card-border: #cce8f4;
+            --tv-card-bg: #f4fbf5;
+            --tv-card-border: #cceadc;
+        }
+
+        /* 暗色模式变量 */
+        [data-theme="dark"] {
+            --primary: #0d253f; 
+            --secondary: #01b4e4;
+            --douban-green: #008f29;
+            --bg: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-light: #aaaaaa;
+            --border-color: #333333;
+            --highlight-border: #01b4e4;
+            --highlight-bg: #1a2a3a;
+            --tag-bg: #2c2c2c;
+            --tag-text: #cccccc;
+            --code-bg: #121212;
+            --tv-detail-bg: #252525;
+            
+            /* 卡片类型区分颜色 (暗色模式) */
+            --movie-card-bg: #131c26;
+            --movie-card-border: #1a3045;
+            --tv-card-bg: #132418;
+            --tv-card-border: #1a3b25;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1600px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .quick-copy-panel {
+            width: 280px;
+            flex-shrink: 0;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s;
+        }
+
+        .control-panel {
+            width: 320px;
+            flex-shrink: 0;
+            background: var(--panel-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            transition: background-color 0.3s;
+        }
+
+        .results-panel {
+            flex-grow: 1;
+            background: transparent;
+            min-height: 500px;
+        }
+
+        .logo-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--secondary);
+        }
+
+        .logo-text { color: var(--text-main); }
+        .logo-icon { margin-right: 5px; font-size: 1.5rem; }
+
+        .theme-toggle-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .theme-toggle-btn:hover { background: var(--border-color); }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+
+        .input-with-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg);
+            color: var(--text-main);
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+        }
+        
+        .input-with-icon input {
+            padding-right: 40px; 
+        }
+        input:focus { outline: none; border-color: var(--secondary); }
+
+        .toggle-pwd-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-light);
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+            opacity: 0.7;
+        }
+        .toggle-pwd-btn:hover { opacity: 1; }
+
+        .search-btn {
+            width: 100%;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: filter 0.2s;
+            margin-top: 10px;
+        }
+        .search-btn:hover { filter: brightness(0.9); }
+
+        .quick-copy-box {
+            background: var(--code-bg);
+            border: 1px dashed var(--border-color);
+            color: var(--text-main);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            word-break: break-all;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        .quick-copy-box:hover {
+            border-color: var(--secondary);
+            background: var(--highlight-bg);
+            color: var(--secondary);
+        }
+        
+        .best-match-box {
+            background: var(--highlight-bg);
+            border: 1px solid var(--secondary);
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 0;
+        }
+        [data-theme="dark"] .best-match-box {
+            color: var(--secondary);
+        }
+
+        #otherMatchesWrapper {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0; 
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        .other-matches-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 6px;
+            padding-bottom: 10px;
+        }
+        .other-matches-list::-webkit-scrollbar { width: 6px; }
+        .other-matches-list::-webkit-scrollbar-track { background: transparent; }
+        .other-matches-list::-webkit-scrollbar-thumb { background: #cccccc; border-radius: 3px; }
+        .other-matches-list::-webkit-scrollbar-thumb:hover { background: #aaaaaa; }
+        [data-theme="dark"] .other-matches-list::-webkit-scrollbar-thumb { background: #444444; }
+        [data-theme="dark"] .other-matches-list::-webkit-scrollbar-thumb:hover { background: #666666; }
+
+        .highlight-active.quick-copy-box {
+            background: var(--secondary) !important;
+            color: white !important;
+            border-color: var(--secondary) !important;
+        }
+        .highlight-active.result-item {
+            box-shadow: 0 0 0 3px rgba(1, 180, 228, 0.25) !important;
+            transform: translateY(-2px);
+        }
+        [data-theme="dark"] .highlight-active.result-item {
+            box-shadow: 0 0 0 3px rgba(1, 180, 228, 0.4) !important;
+        }
+
+        .placeholder-text {
+            text-align: center;
+            color: var(--text-light);
+            margin-top: 100px;
+            line-height: 1.6;
+        }
+
+        .result-list { display: flex; flex-direction: column; gap: 15px; }
+
+        .result-item {
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            gap: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+        }
+        
+        .card-movie {
+            background-color: var(--movie-card-bg);
+            border: 1px solid var(--movie-card-border);
+        }
+        .card-movie:hover { border-color: #01b4e4; }
+
+        .card-tv {
+            background-color: var(--tv-card-bg);
+            border: 1px solid var(--tv-card-border);
+        }
+        .card-tv:hover { border-color: #00b33c; }
+
+        .poster-col { width: 100px; flex-shrink: 0; }
+        .poster-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            background-color: var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .info-col {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+        .main-title { font-size: 1.1rem; font-weight: bold; color: var(--text-main); margin: 0; }
+        .sub-title { font-size: 0.9rem; color: var(--text-light); margin-bottom: 8px; }
+
+        .tag {
+            background: var(--tag-bg);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--tag-text);
+            white-space: nowrap;
+        }
+        .tag.type-movie { color: #01b4e4; background: rgba(1, 180, 228, 0.1); border: 1px solid rgba(1, 180, 228, 0.3);}
+        .tag.type-tv { color: #00b33c; background: rgba(0, 179, 60, 0.1); border: 1px solid rgba(0, 179, 60, 0.3);}
+
+        .tv-details {
+            background: var(--tv-detail-bg);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+        .tv-label { color: var(--text-light); font-weight: 500; }
+        .tv-value { font-weight: bold; color: var(--secondary); }
+        .status-ended { color: var(--text-light); }
+        .status-airing { color: #ff8c00; }
+
+        .overview-text {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .generated-name {
+            font-family: monospace;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            flex-grow: 1;
+            margin-right: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .card-movie .generated-name {
+            background: rgba(1, 180, 228, 0.05);
+            border: 1px dashed rgba(1, 180, 228, 0.4);
+            color: var(--text-main);
+        }
+        .card-movie .generated-name:hover {
+            background: rgba(1, 180, 228, 0.15);
+            border-color: #01b4e4;
+            color: #01b4e4;
+        }
+
+        .card-tv .generated-name {
+            background: rgba(0, 179, 60, 0.05);
+            border: 1px dashed rgba(0, 179, 60, 0.4);
+            color: var(--text-main);
+        }
+        .card-tv .generated-name:hover {
+            background: rgba(0, 179, 60, 0.15);
+            border-color: #00b33c;
+            color: #00b33c;
+        }
+
+        [data-theme="dark"] .card-movie .generated-name { color: #a0d8ef; }
+        [data-theme="dark"] .card-tv .generated-name { color: #a8e0bc; }
+        [data-theme="dark"] .card-movie .generated-name:hover { color: #01b4e4; }
+        [data-theme="dark"] .card-tv .generated-name:hover { color: #00b33c; }
+
+        .btn-group { display: flex; gap: 8px; }
+        .btn-small {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn-tmdb { background-color: var(--secondary); }
+        .btn-douban { background-color: var(--douban-green); }
+        .btn-small:hover { opacity: 0.8; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(3px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .loading-text { font-size: 1.1rem; font-weight: bold; }
+        .error-message { font-size: 0.9rem; color: #ff6b6b; margin-top: 10px; max-width: 400px; text-align: center; line-height: 1.5; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 1100px) {
+            .container { flex-direction: column; }
+            .quick-copy-panel, .control-panel { 
+                width: 100%; 
+                position: static; 
+                max-height: none; 
+                box-sizing: border-box;
+            }
+            .other-matches-list { max-height: 250px; }
+            .result-item { flex-direction: column; }
+            .poster-col { width: 100%; height: 200px; }
+            .poster-img { height: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="quick-copy-panel hidden" id="quickCopyPanel">
+        <label class="form-label" style="font-size: 1rem; color: var(--secondary);">💡 最佳匹配</label>
+        <div id="bestMatchContainer"></div>
+        
+        <div id="otherMatchesWrapper" class="hidden">
+            <label class="form-label">🔍 其他结果</label>
+            <div id="otherMatchesContainer" class="other-matches-list"></div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="logo-area">
+            <div>
+                <span class="logo-icon">🎬</span>
+                <span class="logo-text">影视剧集命名</span>
+            </div>
+            <button id="themeToggle" class="theme-toggle-btn" title="切换模式">🌙</button>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">TMDB API Key (v3 Auth)</label>
+            <div class="input-with-icon">
+                <input type="password" id="apiKey" placeholder="粘贴您的 API Key (32位字符)">
+                <button type="button" id="toggleApiKey" class="toggle-pwd-btn" title="显示/隐藏 API Key">👁️</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">影视名称 (支持中英文)</label>
+            <input type="text" id="searchQuery" placeholder="例如：家有儿女 / Home with Kids">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">年份 (可选)</label>
+            <input type="text" id="searchYear" placeholder="例如：2005">
+        </div>
+
+        <button class="search-btn" onclick="startSearch()">匹配并生成结果</button>
+    </div>
+
+    <div class="results-panel" id="resultsContainer">
+        <div class="placeholder-text">输入关键词并点击搜索<br>结果将显示在这里</div>
+    </div>
+</div>
+
+<div id="loading" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <span class="loading-text" id="loadingText">正在智能检索中...</span>
+    <span class="error-message hidden" id="loadingError"></span>
+</div>
+
+<script>
+    // --- 日夜间模式逻辑 ---
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeToggleBtn.innerText = '☀️';
+    }
+    themeToggleBtn.addEventListener('click', () => {
+        let theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'dark') {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            themeToggleBtn.innerText = '🌙';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            themeToggleBtn.innerText = '☀️';
+        }
+    });
+
+    // --- API Key 从后端加载和保存 ---
+    const apiKeyInput = document.getElementById('apiKey');
+    const toggleApiKeyBtn = document.getElementById('toggleApiKey');
+
+    // 加载 API Key
+    async function loadApiKey() {
+        try {
+            const res = await fetch('/api/config');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.apiKey) {
+                    apiKeyInput.value = data.apiKey;
+                }
+            }
+        } catch (e) {
+            console.warn('无法加载 API Key', e);
+        }
+    }
+    loadApiKey();
+
+    // 实时保存到后端
+    apiKeyInput.addEventListener('input', async (e) => {
+        const key = e.target.value.trim();
+        try {
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: key })
+            });
+        } catch (err) {
+            console.warn('保存 API Key 失败', err);
+        }
+    });
+
+    // 显隐切换
+    toggleApiKeyBtn.addEventListener('click', () => {
+        if (apiKeyInput.type === 'password') {
+            apiKeyInput.type = 'text';
+            toggleApiKeyBtn.innerText = '🙈';
+            toggleApiKeyBtn.title = "隐藏 API Key";
+        } else {
+            apiKeyInput.type = 'password';
+            toggleApiKeyBtn.innerText = '👁️';
+            toggleApiKeyBtn.title = "显示 API Key";
+        }
+    });
+
+    // --- 绑定影视名称输入框的回车键搜索 ---
+    document.getElementById('searchQuery').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            startSearch();
+        }
+    });
+
+    // --- 核心联动拆分处理 ---
+    function applyHighlightAndScroll(uid, source) {
+        document.querySelectorAll('.highlight-active').forEach(el => el.classList.remove('highlight-active'));
+
+        const leftItem = document.querySelector(`.left-copy-item[data-uid="${uid}"]`);
+        const rightCard = document.querySelector(`.result-item[data-uid="${uid}"]`);
+
+        if (leftItem) leftItem.classList.add('highlight-active');
+        if (rightCard) rightCard.classList.add('highlight-active');
+
+        if (source === 'left' && rightCard) {
+            rightCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (source === 'right' && leftItem) {
+            leftItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function handleCardClick(uid) {
+        applyHighlightAndScroll(uid, 'right');
+    }
+
+    function handleCopyClick(event, element, uid, source) {
+        if(event) event.stopPropagation();
+        
+        const textToCopy = element.getAttribute('data-copy-text');
+        if(!element.innerText.includes('✅')) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = element.innerText;
+                element.innerText = '✅ 复制成功！';
+                element.style.backgroundColor = '#00b33c'; 
+                element.style.color = 'white';
+                element.style.borderColor = '#00b33c';
+                setTimeout(() => {
+                    element.innerText = originalText;
+                    element.style.backgroundColor = '';
+                    element.style.color = '';
+                    element.style.borderColor = '';
+                }, 1200);
+            }).catch(() => alert('剪贴板权限受限，请手动复制。'));
+        }
+
+        applyHighlightAndScroll(uid, source);
+    }
+
+    // --- 带有细致状态码判断的 Fetch 封装 ---
+    async function fetchWithErrorHandling(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            if (response.status === 401) throw new Error("API Key 鉴权失败 (401)。请确保你填写的是 TMDB 的 API Key (v3 auth)，且未包含多余空格。");
+            if (response.status === 404) throw new Error("请求的接口地址未找到 (404)。");
+            if (response.status === 429) throw new Error("请求过于频繁 (429)，请稍后再试。");
+            if (response.status >= 500) throw new Error("TMDB 服务器错误 (" + response.status + ")，请稍候重试。");
+            throw new Error(`网络请求失败，状态码: ${response.status}`);
+        }
+        return response.json();
+    }
+
+    // --- 核心搜索与第三方请求逻辑 ---
+    async function startSearch() {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const query = document.getElementById('searchQuery').value.trim();
+        const year = document.getElementById('searchYear').value.trim();
+        const container = document.getElementById('resultsContainer');
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+        const loadingError = document.getElementById('loadingError');
+        const quickCopyPanel = document.getElementById('quickCopyPanel');
+        const bestMatchContainer = document.getElementById('bestMatchContainer');
+        const otherMatchesContainer = document.getElementById('otherMatchesContainer');
+        const otherMatchesWrapper = document.getElementById('otherMatchesWrapper');
+
+        if (!apiKey) { alert('请填写 TMDB API Key！'); return; }
+        if (!query) { alert('请输入影视名称'); return; }
+
+        // 点击搜索时再保存一次，确保最新
+        try {
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey })
+            });
+        } catch (e) {}
+
+        loading.classList.remove('hidden');
+        loadingError.classList.add('hidden');
+        loadingError.innerText = '';
+        quickCopyPanel.classList.add('hidden');
+        bestMatchContainer.innerHTML = '';
+        otherMatchesContainer.innerHTML = '';
+        loadingText.innerText = '正在执行全网匹配...';
+        container.innerHTML = '';
+
+        try {
+            const [movieData, tvData] = await Promise.all([
+                fetchWithErrorHandling(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&year=${year}&language=zh-CN&include_adult=false`),
+                fetchWithErrorHandling(`https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&first_air_date_year=${year}&language=zh-CN&include_adult=false`)
+            ]);
+
+            let rawResults = [];
+            if (movieData.results) rawResults = rawResults.concat(movieData.results.map(item => ({...item, media_type: 'movie'})));
+            if (tvData.results) rawResults = rawResults.concat(tvData.results.map(item => ({...item, media_type: 'tv'})));
+
+            const tvItems = rawResults.filter(item => item.media_type === 'tv');
+            if (tvItems.length > 0) {
+                let completed = 0;
+                const total = tvItems.length;
+                loadingText.innerText = `正在获取剧集详情... (${completed}/${total})`;
+                
+                const tvDetailsPromises = tvItems.map(item => 
+                    fetch(`https://api.themoviedb.org/3/tv/${item.id}?api_key=${apiKey}&language=zh-CN`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(data => {
+                        completed++;
+                        loadingText.innerText = `正在获取剧集详情... (${completed}/${total})`;
+                        return data;
+                    })
+                    .catch(() => {
+                        completed++;
+                        loadingText.innerText = `正在获取剧集详情... (${completed}/${total})`;
+                        return null;
+                    })
+                );
+                
+                const tvDetails = await Promise.all(tvDetailsPromises);
+                tvDetails.forEach(detail => {
+                    if(!detail) return;
+                    const target = rawResults.find(r => r.id === detail.id && r.media_type === 'tv');
+                    if (target) target.detailed_info = detail;
+                });
+            }
+
+            rawResults.sort((a, b) => {
+                const aTitle = (a.title || a.name || '').toLowerCase();
+                const bTitle = (b.title || b.name || '').toLowerCase();
+                const q = query.toLowerCase();
+                const aMatch = aTitle.includes(q) ? 1 : 0;
+                const bMatch = bTitle.includes(q) ? 1 : 0;
+                if (aMatch !== bMatch) return bMatch - aMatch;
+                return b.popularity - a.popularity;
+            });
+
+            if (rawResults.length === 0) {
+                container.innerHTML = '<div class="placeholder-text">未找到相关结果，请尝试更换关键词或去除年份限制。</div>';
+            } else {
+                rawResults.forEach((item, index) => {
+                    const isMovie = item.media_type === 'movie';
+                    const title = isMovie ? (item.title || '未知标题') : (item.name || '未知标题');
+                    const date = isMovie ? item.release_date : item.first_air_date;
+                    const resultYear = date ? date.split('-')[0] : '未知';
+                    
+                    const uid = `${item.media_type}-${item.id}`; 
+                    const copyString = `${title} (${resultYear}) {tmdb-${item.id}}`;
+
+                    const box = document.createElement('div');
+                    box.className = `quick-copy-box left-copy-item ${index === 0 ? 'best-match-box' : ''}`;
+                    box.setAttribute('data-uid', uid);
+                    box.setAttribute('data-copy-text', copyString);
+                    box.onclick = function(e) { handleCopyClick(e, this, uid, 'left'); };
+                    box.innerText = copyString;
+                    box.title = "📋 点击复制此标准命名";
+
+                    if (index === 0) {
+                        bestMatchContainer.appendChild(box);
+                    } else {
+                        otherMatchesContainer.appendChild(box);
+                    }
+                });
+
+                if (rawResults.length > 1) {
+                    otherMatchesWrapper.classList.remove('hidden');
+                } else {
+                    otherMatchesWrapper.classList.add('hidden');
+                }
+                
+                quickCopyPanel.classList.remove('hidden');
+                renderResults(rawResults);
+            }
+
+            loading.classList.add('hidden');
+
+        } catch (error) {
+            console.error(error);
+            loadingText.innerText = "检索失败";
+            loadingError.innerText = error.message + "\n(点击背景关闭此提示)";
+            loadingError.classList.remove('hidden');
+            
+            loading.onclick = function() {
+                loading.classList.add('hidden');
+                loading.onclick = null; 
+            }
+            container.innerHTML = `<div class="placeholder-text" style="color:#ff4d4f">❌ 搜索中止：${error.message}</div>`;
+        }
+    }
+
+    function buildTVDetailsHTML(detail) {
+        if (!detail) return '';
+        const statusMap = {
+            'Ended': { text: '已完结', class: 'status-ended' },
+            'Returning Series': { text: '连载/续订中', class: 'status-airing' },
+            'Canceled': { text: '已取消', class: 'status-ended' },
+            'In Production': { text: '制作中', class: 'status-airing' },
+            'Planned': { text: '计划中', class: 'status-airing' }
+        };
+        const statusObj = statusMap[detail.status] || { text: detail.status || '未知', class: '' };
+        const validSeasons = (detail.seasons || []).filter(s => s.season_number > 0);
+        const seasonsStr = validSeasons.map(s => `第${s.season_number}季(${s.episode_count}集)`).join(' · ');
+
+        return `
+            <div class="tv-details">
+                <div style="margin-bottom: 6px;">
+                    <span class="tv-label">状态：</span> <span class="tv-value ${statusObj.class}">${statusObj.text}</span> 
+                    <span style="margin:0 10px; color:var(--border-color)">|</span> 
+                    <span class="tv-label">总计：</span> <span class="tv-value">${detail.number_of_seasons} 季 / ${detail.number_of_episodes} 集</span>
+                </div>
+                ${seasonsStr ? `<div><span class="tv-label">分季：</span> <span style="font-size:0.8rem; color:var(--text-main)">${seasonsStr}</span></div>` : ''}
+            </div>
+        `;
+    }
+
+    const fallbackSvg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300"><rect width="200" height="300" fill="#f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#94a3b8" font-weight="bold">暂无海报</text><path d="M70 110 L130 110 L100 80 Z" fill="#cbd5e1"/><path d="M70 120 L130 120 L130 180 L70 180 Z" fill="#cbd5e1"/></svg>`);
+    const fallbackPoster = `data:image/svg+xml;charset=UTF-8,${fallbackSvg}`;
+
+    function renderResults(items) {
+        const container = document.getElementById('resultsContainer');
+        const listDiv = document.createElement('div');
+        listDiv.className = 'result-list';
+
+        for (const item of items) {
+            const isMovie = item.media_type === 'movie';
+            const title = isMovie ? (item.title || '未知标题') : (item.name || '未知标题');
+            const originalTitle = item.original_title || item.original_name || title;
+            const date = isMovie ? item.release_date : item.first_air_date;
+            const resultYear = date ? date.split('-')[0] : '未知';
+            
+            const posterPath = item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : fallbackPoster;
+            const overview = item.overview || '暂无简介，可能这是一个较为冷门的词条。';
+            
+            const uid = `${item.media_type}-${item.id}`;
+            const copyString = `${title} (${resultYear}) {tmdb-${item.id}}`;
+            const tvDetailsHtml = (!isMovie && item.detailed_info) ? buildTVDetailsHTML(item.detailed_info) : '';
+            
+            const doubanSearchText = encodeURIComponent(`${title} ${resultYear !== '未知' ? resultYear : ''}`.trim());
+
+            const card = document.createElement('div');
+            card.className = `result-item ${isMovie ? 'card-movie' : 'card-tv'}`;
+            card.setAttribute('data-uid', uid); 
+            card.title = "点击卡片高亮选中并定位";
+            
+            card.onclick = function() { handleCardClick(uid); };
+            
+            card.innerHTML = `
+                <div class="poster-col">
+                    <img src="${posterPath}" class="poster-img" alt="${title}">
+                </div>
+                <div class="info-col">
+                    <div>
+                        <div class="title-row">
+                            <h3 class="main-title">${title}</h3>
+                            <span class="tag ${isMovie ? 'type-movie' : 'type-tv'}">${isMovie ? '电影' : '剧集'}</span>
+                        </div>
+                        <div class="sub-title">${originalTitle} (${resultYear})</div>
+                        ${tvDetailsHtml}
+                        <div class="overview-text">${overview}</div>
+                    </div>
+                    <div class="action-row">
+                        <div class="generated-name right-copy-item" data-copy-text="${copyString}" onclick="handleCopyClick(event, this, '${uid}', 'right')" title="📋 点击复制此标准命名">${copyString}</div>
+                        <div class="btn-group" onclick="event.stopPropagation()">
+                            <a href="https://www.themoviedb.org/${isMovie ? 'movie' : 'tv'}/${item.id}" target="_blank" class="btn-small btn-tmdb" title="在 TMDB 官网查看详情">TMDB</a>
+                            <a href="https://search.douban.com/movie/subject_search?search_text=${doubanSearchText}" target="_blank" class="btn-small btn-douban" title="前往豆瓣搜索 (已自动优化搜索词)">豆瓣</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            listDiv.appendChild(card);
+        }
+        container.appendChild(listDiv);
+    }
+</script>
+</body>
+</html>
